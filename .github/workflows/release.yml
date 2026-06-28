@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,15 +20,28 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run package:linux
-      - uses: actions/upload-artifact@v4
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
         with:
-          name: linux-builds
-          path: release/*.{AppImage,deb}
+          name: MaraBytes File Share ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          body: |
+            ## MaraBytes File Share ${{ github.ref_name }}
+
+            ### Downloads
+            - **Windows** — `MaraBytes File Share-*-win-x64.exe` (portable)
+            - **Linux** — `MaraBytes File Share-*.AppImage` (just run it)
+            - **Linux (Debian/Ubuntu)** — `marabytes-file-share_*_amd64.deb`
+          files: |
+            release/MaraBytes File Share-*.AppImage
+            release/marabytes-file-share_*.deb
 
   build-windows:
     runs-on: windows-latest
     env:
       GH_TOKEN: ${{ github.token }}
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,39 +50,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run package:win
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-builds
-          path: release/*.exe
-
-  create-release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-linux, build-windows]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: linux-builds
-          path: release
-      - uses: actions/download-artifact@v4
-        with:
-          name: windows-builds
-          path: release
-      - uses: softprops/action-gh-release@v2
-        with:
-          name: MaraBytes File Share ${{ github.ref_name }}
-          body: |
-            ## MaraBytes File Share ${{ github.ref_name }}
-
-            ### Downloads
-            - **Windows** — `MaraBytes File Share-*-win-x64.exe` (portable, no install needed)
-            - **Linux** — `MaraBytes File Share-*.AppImage` (just run it)
-            - **Linux (Debian/Ubuntu)** — `marabytes-file-share_*_amd64.deb`
-
-            ### Installation
-            **Windows**: Download the `.exe` and run it.
-            **Linux**: Download the `.AppImage`, `chmod +x`, and run it.
-            Or install the `.deb` on Debian/Ubuntu.
-          files: release/*
+      - if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          gh release upload ${{ github.ref_name }} release/MaraBytes\ File\ Share-*.exe --clobber
