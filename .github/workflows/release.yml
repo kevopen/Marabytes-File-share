@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    tags: ["v*"]
 
 jobs:
   build-linux:
@@ -35,3 +35,35 @@ jobs:
         with:
           name: windows-builds
           path: release/*.exe
+
+  create-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-builds
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-builds
+          path: release
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: MaraBytes File Share ${{ github.ref_name }}
+          body: |
+            ## MaraBytes File Share ${{ github.ref_name }}
+
+            ### Downloads
+            - **Windows** — `MaraBytes File Share-*-win-x64.exe` (portable, no install needed)
+            - **Linux** — `MaraBytes File Share-*.AppImage` (just run it)
+            - **Linux (Debian/Ubuntu)** — `marabytes-file-share_*_amd64.deb`
+
+            ### Installation
+            **Windows**: Download the `.exe` and run it.
+            **Linux**: Download the `.AppImage`, `chmod +x`, and run it.
+            Or install the `.deb` on Debian/Ubuntu.
+          files: release/*
