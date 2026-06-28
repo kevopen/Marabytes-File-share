@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "MaraBytes File Share - Cross-platform file sharing desktop app",
   "main": "./out/main/index.js",
-  "author": "MaraBytes",
+  "author": {
+    "name": "MaraBytes",
+    "email": "hello@marabytes.com"
+  },
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",

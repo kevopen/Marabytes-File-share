@@ -23,8 +23,8 @@ export default function Sidebar({
     <aside className="w-60 flex flex-col bg-black/40 backdrop-blur-2xl border-r border-white/[0.06]">
       <div className="p-5 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0ea5e9] to-[#0284c7] shadow-lg shadow-[#0ea5e9]/20 flex items-center justify-center">
-            <span className="text-white text-sm font-bold tracking-tight">M</span>
+          <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-black/20">
+            <img src="/logo-icon.png" alt="MaraBytes" className="w-7 h-7 object-contain" />
           </div>
           <div>
             <h1 className="text-sm font-semibold text-white/90 leading-tight">
