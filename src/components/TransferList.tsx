@@ -1,6 +1,8 @@
 interface TransferListProps {
   transfers: Transfer[]
   onCancel: (id: string) => void
+  onOpenFolder: (filePath: string) => void
+  downloadPath?: string
 }
 
 function formatSize(bytes: number): string {
@@ -11,113 +13,136 @@ function formatSize(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
 }
 
+function formatSpeed(bytesPerSec: number): string {
+  if (bytesPerSec <= 0) return ''
+  return `${formatSize(bytesPerSec)}/s`
+}
+
 function statusConfig(status: string) {
   switch (status) {
     case 'sending':
-      return { color: 'text-[#38bdf8]', bar: 'bg-gradient-to-r from-[#0ea5e9] to-[#38bdf8]', label: 'Sending...' }
+      return { color: 'text-accent-light', bar: 'bg-gradient-to-r from-accent to-accent-light', label: 'Sending...' }
     case 'receiving':
-      return { color: 'text-[#38bdf8]', bar: 'bg-gradient-to-r from-[#0ea5e9] to-[#38bdf8]', label: 'Receiving...' }
+      return { color: 'text-accent-light', bar: 'bg-gradient-to-r from-accent to-accent-light', label: 'Receiving...' }
     case 'completed':
       return { color: 'text-green-400', bar: 'bg-green-400', label: 'Completed' }
     case 'cancelled':
-      return { color: 'text-white/30', bar: 'bg-white/10', label: 'Cancelled' }
+      return { color: 'text-app-text-muted', bar: 'bg-app-border', label: 'Cancelled' }
     case 'error':
       return { color: 'text-red-400', bar: 'bg-red-400', label: 'Error' }
     default:
-      return { color: 'text-white/30', bar: 'bg-white/10', label: 'Pending' }
+      return { color: 'text-app-text-muted', bar: 'bg-app-border', label: 'Pending' }
   }
 }
 
-export default function TransferList({ transfers, onCancel }: TransferListProps) {
+function TransferCard({ t, onCancel, onOpenFolder }: {
+  t: Transfer
+  onCancel: (id: string) => void
+  onOpenFolder: (path: string) => void
+}) {
+  const cfg = statusConfig(t.status)
+  const speed = formatSpeed(t.speed)
+  const canOpen = t.status === 'completed' && t.targetPath
+
+  return (
+    <div
+      onClick={() => canOpen && onOpenFolder(t.targetPath!)}
+      className={`bg-app-surface backdrop-blur-xl rounded-2xl border border-app-border p-4 transition-all duration-200 ${
+        canOpen ? 'cursor-pointer hover:bg-app-surface-hover hover:border-app-border-hover' : ''
+      }`}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+            t.status === 'receiving' ? 'bg-green-500/10' : 'bg-accent/10'
+          }`}>
+            <span className="text-sm">{t.direction === 'send' ? '↑' : '↓'}</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm text-app-text font-medium truncate">{t.fileName}</p>
+            <p className="text-[11px] text-app-text-secondary flex items-center gap-1.5">
+              <span>{formatSize(t.fileSize)}</span>
+              <span className="w-1 h-1 rounded-full bg-app-border" />
+              <span>{t.peerName}</span>
+              {speed && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-app-border" />
+                  <span className="text-accent-light">{speed}</span>
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={`text-[11px] font-medium ${cfg.color}`}>{t.progress}%</span>
+          {t.status === 'sending' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onCancel(t.id) }}
+              className="text-[10px] text-app-text-muted hover:text-red-400 transition-colors px-1"
+            >✕</button>
+          )}
+        </div>
+      </div>
+      <div className="w-full h-1.5 bg-app-border rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-300 ${cfg.bar}`} style={{ width: `${t.progress}%` }} />
+      </div>
+      {canOpen && (
+        <p className="text-[9px] text-app-text-muted mt-2 font-mono truncate" title={t.targetPath}>
+          📁 {t.targetPath}
+        </p>
+      )}
+    </div>
+  )
+}
+
+export default function TransferList({ transfers, onCancel, onOpenFolder, downloadPath }: TransferListProps) {
   const active = transfers.filter((t) => t.status === 'sending' || t.status === 'receiving' || t.status === 'pending')
   const history = transfers.filter((t) => t.status !== 'sending' && t.status !== 'receiving' && t.status !== 'pending')
 
   if (transfers.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-sm text-white/30">No transfers yet</p>
-      </div>
-    )
+    return <div className="text-center py-8"><p className="text-sm text-app-text-muted">No transfers yet</p></div>
   }
 
   return (
     <div className="space-y-6">
       {active.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-[10px] font-semibold text-white/30 uppercase tracking-[0.15em] px-1">
-            Active
-          </h3>
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-[10px] font-semibold text-app-text-muted uppercase tracking-[0.15em]">Active</h3>
+            {active.some(t => t.direction === 'receive') && downloadPath && (
+              <span className="text-[9px] text-app-text-muted font-mono truncate max-w-[200px]" title={downloadPath}>↓ {downloadPath}</span>
+            )}
+          </div>
           <div className="space-y-2">
-            {active.map((t) => {
-              const cfg = statusConfig(t.status)
-              return (
-                <div
-                  key={t.id}
-                  className="bg-white/[0.04] backdrop-blur-xl rounded-2xl border border-white/[0.06] p-4"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                        t.direction === 'send' ? 'bg-[#0ea5e9]/10' : 'bg-green-500/10'
-                      }`}>
-                        <span className="text-sm">{t.direction === 'send' ? '↑' : '↓'}</span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm text-white/80 font-medium truncate">
-                          {t.fileName}
-                        </p>
-                        <p className="text-[11px] text-white/30">
-                          {formatSize(t.fileSize)} · {t.peerName}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-[11px] font-medium ${cfg.color}`}>
-                        {t.progress}%
-                      </span>
-                      {t.status === 'sending' && (
-                        <button
-                          onClick={() => onCancel(t.id)}
-                          className="text-[10px] text-white/30 hover:text-red-400 transition-colors px-1"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="w-full h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${cfg.bar}`}
-                      style={{ width: `${t.progress}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
+            {active.map((t) => (
+              <TransferCard key={t.id} t={t} onCancel={onCancel} onOpenFolder={onOpenFolder} />
+            ))}
           </div>
         </div>
       )}
 
       {history.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-[10px] font-semibold text-white/30 uppercase tracking-[0.15em] px-1">
-            History
-          </h3>
+          <h3 className="text-[10px] font-semibold text-app-text-muted uppercase tracking-[0.15em] px-1">History</h3>
           <div className="space-y-1">
             {history.map((t) => {
               const cfg = statusConfig(t.status)
+              const canOpen = t.status === 'completed' && t.targetPath
               return (
                 <div
                   key={t.id}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.02] transition-colors"
+                  onClick={() => canOpen && onOpenFolder(t.targetPath!)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                    canOpen ? 'cursor-pointer hover:bg-app-glass-hover' : ''
+                  }`}
                 >
-                  <div className={`w-1.5 h-1.5 rounded-full ${
-                    t.status === 'completed' ? 'bg-green-400' :
-                    t.status === 'error' ? 'bg-red-400' : 'bg-white/20'
-                  }`} />
-                  <p className="text-sm text-white/60 flex-1 truncate">{t.fileName}</p>
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-accent/10">
+                    <span className="text-[10px]">{t.direction === 'send' ? '↑' : '↓'}</span>
+                  </div>
+                  <p className="text-sm text-app-text flex-1 truncate">{t.fileName}</p>
+                  <span className="text-[10px] text-app-text-muted">{t.peerName}</span>
                   <span className={`text-[11px] ${cfg.color}`}>{cfg.label}</span>
-                  <span className="text-[11px] text-white/20">{formatSize(t.fileSize)}</span>
+                  <span className="text-[11px] text-app-text-muted">{formatSize(t.fileSize)}</span>
                 </div>
               )
             })}

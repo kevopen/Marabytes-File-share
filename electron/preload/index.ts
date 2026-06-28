@@ -9,6 +9,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   cancelTransfer: (transferId: string) =>
     ipcRenderer.invoke('cancel-transfer', transferId),
   openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),
+  getDownloadPath: () => ipcRenderer.invoke('get-download-path'),
+  setDownloadPath: () => ipcRenderer.invoke('set-download-path'),
+  openFileFolder: (filePath: string) =>
+    ipcRenderer.invoke('open-file-folder', filePath),
+  openExternal: (url: string) =>
+    ipcRenderer.invoke('open-external', url),
+
+  onTransferNew: (callback: (transfer: unknown) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, transfer: unknown) =>
+      callback(transfer)
+    ipcRenderer.on('transfer-new', handler)
+    return () => ipcRenderer.removeListener('transfer-new', handler)
+  },
 
   onDeviceListChange: (callback: (devices: unknown[]) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, devices: unknown[]) =>

@@ -2,9 +2,6 @@ appId: com.marabytes.fileshare
 productName: MaraBytes File Share
 directories:
   output: release
-files:
-  - out/**/*
-  - "!node_modules/**/*"
 icon: build/icon.png
 linux:
   target:

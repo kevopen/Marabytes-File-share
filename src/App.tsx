@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import DropZone from './components/DropZone'
@@ -12,24 +12,65 @@ type Page = 'share' | 'transfers' | 'settings'
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>('share')
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('mb-theme') as 'dark' | 'light') || 'dark'
+  })
+  const [downloadPath, setDownloadPath] = useState('')
+  const [devicesCount, setDevicesCount] = useState(0)
   const { devices, localIP, selectedDeviceId, selectedDevice, selectDevice } = useDevices()
-  const { transfers, sendFile, cancelTransfer } = useTransfers()
-  const { toasts } = useToast()
+  const { toasts, addToast } = useToast()
+  const { transfers, sendFile, cancelTransfer } = useTransfers(
+    useCallback((t: Transfer) => {
+      addToast(`Receiving ${t.fileName} from ${t.peerName}`, 'info')
+    }, [])
+  )
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('mb-theme', theme)
+  }, [theme])
+
+  useEffect(() => {
+    setDevicesCount(devices.length)
+  }, [devices])
+
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.getDownloadPath().then(setDownloadPath)
+    }
+  }, [])
+
+  const handleSendFile = useCallback(() => {
+    if (selectedDeviceId) sendFile(selectedDeviceId)
+  }, [selectedDeviceId, sendFile])
+
+  const handleSetDownloadPath = useCallback(async () => {
+    if (!window.electronAPI) return
+    const newPath = await window.electronAPI.setDownloadPath()
+    if (newPath) {
+      setDownloadPath(newPath)
+      addToast(`Download location changed to ${newPath}`, 'success')
+    }
+  }, [])
+
+  const handleOpenFolder = useCallback((filePath: string) => {
+    window.electronAPI?.openFileFolder(filePath)
+  }, [])
+
+  const handleOpenExternal = useCallback((url: string) => {
+    window.electronAPI?.openExternal(url)
+  }, [])
+
+  const toggleTheme = () => setTheme((t) => t === 'dark' ? 'light' : 'dark')
 
   return (
-    <div className="flex h-screen bg-[#060912] text-white select-none">
-      {/* Background glow */}
+    <div className="flex h-screen bg-app-bg text-app-text select-none">
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-[#0ea5e9]/[0.03] blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[#0284c7]/[0.02] blur-[100px]" />
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-accent/[0.03] blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-accent-dark/[0.02] blur-[100px]" />
       </div>
 
-      <Sidebar
-        activePage={activePage}
-        onNavigate={setActivePage}
-        deviceCount={devices.length}
-        localIP={localIP}
-      />
+      <Sidebar activePage={activePage} onNavigate={setActivePage} deviceCount={devicesCount} localIP={localIP} />
 
       <main className="flex-1 flex flex-col relative">
         <Header localIP={localIP} />
@@ -37,35 +78,27 @@ export default function App() {
         <div className="flex-1 p-6 overflow-auto">
           {activePage === 'share' && (
             <div className="max-w-2xl mx-auto space-y-6">
-              {/* Header */}
               <div className="text-center py-4">
-                <h1 className="text-xl font-semibold text-white/90">
-                  Share Files
-                </h1>
-                <p className="text-sm text-white/40 mt-1">
+                <h1 className="text-xl font-semibold text-app-text">Share Files</h1>
+                <p className="text-sm text-app-text-secondary mt-1">
                   Select a device, then drag & drop or pick a file
                 </p>
               </div>
 
-              {/* Device Selection */}
-              <DeviceList
-                devices={devices}
-                selectedId={selectedDeviceId}
-                onSelect={selectDevice}
-              />
+              <DeviceList devices={devices} selectedId={selectedDeviceId} onSelect={selectDevice} />
 
-              {/* Drop Zone */}
               <DropZone
                 hasDevices={devices.length > 0}
                 selectedDeviceName={selectedDevice?.name || null}
-                onSendFile={() => selectedDeviceId && sendFile(selectedDeviceId)}
+                onSendFile={handleSendFile}
               />
 
-              {/* Recent Transfers */}
               {transfers.length > 0 && (
                 <TransferList
-                  transfers={transfers.filter(t => t.direction === 'send')}
+                  transfers={transfers}
                   onCancel={cancelTransfer}
+                  onOpenFolder={handleOpenFolder}
+                  downloadPath={downloadPath}
                 />
               )}
             </div>
@@ -74,11 +107,13 @@ export default function App() {
           {activePage === 'transfers' && (
             <div className="max-w-2xl mx-auto space-y-6">
               <div className="text-center py-4">
-                <h1 className="text-xl font-semibold text-white/90">Transfers</h1>
+                <h1 className="text-xl font-semibold text-app-text">Transfers</h1>
               </div>
               <TransferList
                 transfers={transfers}
                 onCancel={cancelTransfer}
+                onOpenFolder={handleOpenFolder}
+                downloadPath={downloadPath}
               />
             </div>
           )}
@@ -86,27 +121,81 @@ export default function App() {
           {activePage === 'settings' && (
             <div className="max-w-2xl mx-auto space-y-6">
               <div className="text-center py-4">
-                <h1 className="text-xl font-semibold text-white/90">Settings</h1>
+                <h1 className="text-xl font-semibold text-app-text">Settings</h1>
               </div>
-              <div className="bg-white/[0.03] backdrop-blur-xl rounded-2xl border border-white/[0.06] p-6">
-                <div className="space-y-4">
+
+              {/* Theme */}
+              <div className="bg-app-glass backdrop-blur-xl rounded-2xl border border-app-border p-5">
+                <h2 className="text-sm font-semibold text-app-text mb-3">Appearance</h2>
+                <button
+                  onClick={toggleTheme}
+                  className="flex items-center justify-between w-full px-4 py-3 rounded-xl bg-app-surface border border-app-border hover:bg-app-surface-hover transition-colors"
+                >
+                  <span className="text-sm text-app-text">{theme === 'dark' ? '🌙 Dark Mode' : '☀️ Light Mode'}</span>
+                  <div className={`w-10 h-5 rounded-full transition-colors ${theme === 'dark' ? 'bg-accent' : 'bg-app-border'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${theme === 'dark' ? 'translate-x-[22px]' : 'translate-x-[2px]'} mt-[2px]`} />
+                  </div>
+                </button>
+              </div>
+
+              {/* Download Location */}
+              <div className="bg-app-glass backdrop-blur-xl rounded-2xl border border-app-border p-5">
+                <h2 className="text-sm font-semibold text-app-text mb-3">Download Location</h2>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 px-3 py-2.5 rounded-xl bg-app-surface border border-app-border">
+                    <p className="text-xs text-app-text-muted font-mono truncate">{downloadPath || '...'}</p>
+                  </div>
+                  <button
+                    onClick={handleSetDownloadPath}
+                    className="px-4 py-2.5 rounded-xl bg-accent text-white text-sm font-medium hover:bg-accent-dark transition-colors shrink-0"
+                  >
+                    Change
+                  </button>
+                </div>
+              </div>
+
+              {/* Ports */}
+              <div className="bg-app-glass backdrop-blur-xl rounded-2xl border border-app-border p-5">
+                <h2 className="text-sm font-semibold text-app-text mb-3">Network</h2>
+                <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-white/70 font-medium">Transfer Port</p>
-                      <p className="text-xs text-white/30">42070</p>
-                    </div>
+                    <span className="text-sm text-app-text-secondary">Transfer Port</span>
+                    <span className="text-xs text-app-text-muted font-mono">42070</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-white/70 font-medium">Discovery Port</p>
-                      <p className="text-xs text-white/30">42069 (UDP)</p>
-                    </div>
+                    <span className="text-sm text-app-text-secondary">Discovery Port</span>
+                    <span className="text-xs text-app-text-muted font-mono">42069 (UDP)</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-white/70 font-medium">Download Location</p>
-                      <p className="text-xs text-white/30">~/Downloads/MaraBytes</p>
-                    </div>
+                </div>
+              </div>
+
+              {/* About */}
+              <div className="bg-app-glass backdrop-blur-xl rounded-2xl border border-app-border p-5">
+                <h2 className="text-sm font-semibold text-app-text mb-3">About</h2>
+                <div className="space-y-3">
+                  <p className="text-sm text-app-text-secondary">
+                    <span className="text-app-text font-medium">MaraBytes File Share</span> — v1.0.0
+                  </p>
+                  <p className="text-sm text-app-text-secondary">
+                    A cross-platform file sharing tool by{' '}
+                    <button
+                      onClick={() => handleOpenExternal('https://marabytes.co.ke')}
+                      className="text-accent hover:text-accent-light transition-colors underline underline-offset-2"
+                    >
+                      MaraBytes
+                    </button>
+                    .
+                  </p>
+                  <p className="text-sm text-app-text-secondary">
+                    Transfer files securely over your local network. No internet required.
+                  </p>
+                  <div className="pt-2">
+                    <button
+                      onClick={() => handleOpenExternal('https://marabytes.co.ke')}
+                      className="text-xs text-app-text-muted hover:text-accent transition-colors"
+                    >
+                      marabytes.co.ke ↗
+                    </button>
                   </div>
                 </div>
               </div>

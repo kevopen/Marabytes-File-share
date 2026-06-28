@@ -3,6 +3,34 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --app-bg: #060912;
+    --app-glass: rgba(255, 255, 255, 0.03);
+    --app-glass-hover: rgba(255, 255, 255, 0.06);
+    --app-surface: rgba(255, 255, 255, 0.04);
+    --app-surface-hover: rgba(255, 255, 255, 0.08);
+    --app-text: rgba(255, 255, 255, 0.9);
+    --app-text-secondary: rgba(255, 255, 255, 0.5);
+    --app-text-muted: rgba(255, 255, 255, 0.3);
+    --app-border: rgba(255, 255, 255, 0.06);
+    --app-border-hover: rgba(255, 255, 255, 0.10);
+    --app-glow: rgba(14, 165, 233, 0.03);
+  }
+
+  [data-theme="light"] {
+    --app-bg: #f0f5fa;
+    --app-glass: rgba(255, 255, 255, 0.7);
+    --app-glass-hover: rgba(255, 255, 255, 0.85);
+    --app-surface: rgba(0, 0, 0, 0.03);
+    --app-surface-hover: rgba(0, 0, 0, 0.06);
+    --app-text: rgba(15, 23, 42, 0.9);
+    --app-text-secondary: rgba(15, 23, 42, 0.5);
+    --app-text-muted: rgba(15, 23, 42, 0.3);
+    --app-border: rgba(0, 0, 0, 0.06);
+    --app-border-hover: rgba(0, 0, 0, 0.10);
+    --app-glow: rgba(14, 165, 233, 0.05);
+  }
+
   * {
     margin: 0;
     padding: 0;
@@ -10,18 +38,16 @@
   }
 
   body {
-    @apply bg-[#060912] text-white font-sans antialiased;
+    @apply bg-[var(--app-bg)] text-[var(--app-text)] font-sans antialiased;
     overflow: hidden;
   }
 
   ::-webkit-scrollbar {
     width: 4px;
   }
-
   ::-webkit-scrollbar-track {
     @apply bg-transparent;
   }
-
   ::-webkit-scrollbar-thumb {
     @apply bg-white/10 rounded-full hover:bg-white/20;
   }
@@ -31,30 +57,17 @@
   .animate-in {
     animation: animate-in 0.2s ease-out;
   }
-
   .slide-in-from-right {
     animation: slide-in-from-right 0.25s ease-out;
   }
 }
 
 @keyframes animate-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slide-in-from-right {
-  from {
-    opacity: 0;
-    transform: translateX(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
 }

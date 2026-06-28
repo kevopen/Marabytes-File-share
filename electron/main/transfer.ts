@@ -10,10 +10,12 @@ export interface TransferInfo {
   fileName: string
   fileSize: number
   progress: number
+  speed: number
   status: 'pending' | 'sending' | 'receiving' | 'completed' | 'cancelled' | 'error'
   peerName: string
   peerIp: string
   direction: 'send' | 'receive'
+  targetPath?: string
   error?: string
   startedAt: number
 }
@@ -25,10 +27,29 @@ function generateId(): string {
   return `tf-${Date.now()}-${transferCounter}`
 }
 
+interface SpeedTracker {
+  lastBytes: number
+  lastTime: number
+  speed: number
+}
+
+function trackSpeed(tracker: SpeedTracker, currentBytes: number): number {
+  const now = Date.now()
+  const elapsed = (now - tracker.lastTime) / 1000
+  if (elapsed > 0.4) {
+    const bytesDiff = currentBytes - tracker.lastBytes
+    tracker.speed = bytesDiff / elapsed
+    tracker.lastBytes = currentBytes
+    tracker.lastTime = now
+  }
+  return tracker.speed
+}
+
 export class FileTransferServer extends EventEmitter {
   private server: http.Server | null = null
   private port: number
   private transfers: Map<string, TransferInfo> = new Map()
+  private speedTrackers: Map<string, SpeedTracker> = new Map()
   private downloadDir: string
 
   constructor(port: number) {
@@ -67,32 +88,40 @@ export class FileTransferServer extends EventEmitter {
     const destPath = path.join(this.downloadDir, safeName)
     const writeStream = fs.createWriteStream(destPath)
 
+    const tracker: SpeedTracker = { lastBytes: 0, lastTime: Date.now(), speed: 0 }
+
     const transfer: TransferInfo = {
       id: transferId,
       fileName: safeName,
       fileSize,
       progress: 0,
+      speed: 0,
       status: 'receiving',
       peerName,
       peerIp: peerIp.replace('::ffff:', ''),
       direction: 'receive',
+      targetPath: destPath,
       startedAt: Date.now(),
     }
 
     this.transfers.set(transferId, transfer)
+    this.speedTrackers.set(transferId, tracker)
     this.emit('new', transfer)
 
     let received = 0
     req.on('data', (chunk: Buffer) => {
       received += chunk.length
       transfer.progress = fileSize > 0 ? Math.round((received / fileSize) * 100) : 0
+      transfer.speed = trackSpeed(tracker, received)
       this.emit('progress', { ...transfer })
     })
 
     writeStream.on('finish', () => {
       transfer.status = 'completed'
       transfer.progress = 100
+      transfer.speed = 0
       this.emit('complete', { ...transfer })
+      this.speedTrackers.delete(transferId)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ status: 'ok', transferId }))
     })
@@ -104,7 +133,9 @@ export class FileTransferServer extends EventEmitter {
     req.on('error', (err) => {
       transfer.status = 'error'
       transfer.error = err.message
+      transfer.speed = 0
       this.emit('error', { ...transfer })
+      this.speedTrackers.delete(transferId)
       res.writeHead(500)
       res.end()
     })
@@ -122,11 +153,14 @@ export class FileTransferServer extends EventEmitter {
     const fileName = path.basename(filePath)
     const transferId = generateId()
 
+    const tracker: SpeedTracker = { lastBytes: 0, lastTime: Date.now(), speed: 0 }
+
     const transfer: TransferInfo = {
       id: transferId,
       fileName,
       fileSize: stats.size,
       progress: 0,
+      speed: 0,
       status: 'pending',
       peerName,
       peerIp: targetIp,
@@ -135,6 +169,7 @@ export class FileTransferServer extends EventEmitter {
     }
 
     this.transfers.set(transferId, transfer)
+    this.speedTrackers.set(transferId, tracker)
 
     const options = {
       hostname: targetIp,
@@ -156,19 +191,24 @@ export class FileTransferServer extends EventEmitter {
         if (res.statusCode === 200) {
           transfer.status = 'completed'
           transfer.progress = 100
+          transfer.speed = 0
           this.emit('complete', { ...transfer })
         } else {
           transfer.status = 'error'
           transfer.error = `Server returned ${res.statusCode}`
+          transfer.speed = 0
           this.emit('error', { ...transfer })
         }
+        this.speedTrackers.delete(transferId)
       })
     })
 
     req.on('error', (err) => {
       transfer.status = 'error'
       transfer.error = err.message
+      transfer.speed = 0
       this.emit('error', { ...transfer })
+      this.speedTrackers.delete(transferId)
     })
 
     transfer.status = 'sending'
@@ -179,6 +219,7 @@ export class FileTransferServer extends EventEmitter {
     readStream.on('data', (chunk: Buffer) => {
       sent += chunk.length
       transfer.progress = Math.round((sent / stats.size) * 100)
+      transfer.speed = trackSpeed(tracker, sent)
       this.emit('progress', { ...transfer })
     })
 
@@ -191,7 +232,9 @@ export class FileTransferServer extends EventEmitter {
     const transfer = this.transfers.get(transferId)
     if (transfer && (transfer.status === 'pending' || transfer.status === 'sending')) {
       transfer.status = 'cancelled'
+      transfer.speed = 0
       this.emit('progress', { ...transfer })
+      this.speedTrackers.delete(transferId)
     }
   }
 
@@ -199,6 +242,17 @@ export class FileTransferServer extends EventEmitter {
     return Array.from(this.transfers.values()).sort(
       (a, b) => b.startedAt - a.startedAt
     )
+  }
+
+  getDownloadPath(): string {
+    return this.downloadDir
+  }
+
+  setDownloadPath(newPath: string): void {
+    this.downloadDir = newPath
+    if (!fs.existsSync(this.downloadDir)) {
+      fs.mkdirSync(this.downloadDir, { recursive: true })
+    }
   }
 
   stop(): void {

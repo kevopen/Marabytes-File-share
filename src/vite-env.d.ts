@@ -14,10 +14,12 @@ interface Transfer {
   fileName: string
   fileSize: number
   progress: number
+  speed: number
   status: 'pending' | 'sending' | 'receiving' | 'completed' | 'cancelled' | 'error'
   peerName: string
   peerIp: string
   direction: 'send' | 'receive'
+  targetPath?: string
   error?: string
   startedAt?: number
 }
@@ -29,6 +31,12 @@ interface ElectronAPI {
   sendFile: (deviceId: string) => Promise<{ transferId: string }>
   cancelTransfer: (transferId: string) => Promise<void>
   openFileDialog: () => Promise<string[] | null>
+  getDownloadPath: () => Promise<string>
+  setDownloadPath: () => Promise<string | null>
+  openFileFolder: (filePath: string) => Promise<void>
+  openExternal: (url: string) => Promise<void>
+
+  onTransferNew: (callback: (transfer: Transfer) => void) => () => void
   onDeviceListChange: (callback: (devices: Device[]) => void) => () => void
   onTransferUpdate: (callback: (transfer: Transfer) => void) => () => void
   onTransferComplete: (callback: (transfer: Transfer) => void) => () => void

@@ -1,3 +1,5 @@
+import appIcon from '../assets/app-icon.png'
+
 type Page = 'share' | 'transfers' | 'settings'
 
 interface SidebarProps {
@@ -20,19 +22,15 @@ export default function Sidebar({
   localIP,
 }: SidebarProps) {
   return (
-    <aside className="w-60 flex flex-col bg-black/40 backdrop-blur-2xl border-r border-white/[0.06]">
-      <div className="p-5 border-b border-white/[0.06]">
+    <aside className="w-60 flex flex-col bg-app-bg border-r border-app-border">
+      <div className="p-5 border-b border-app-border">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-black/20">
-            <img src="/logo-icon.png" alt="MaraBytes" className="w-7 h-7 object-contain" />
+            <img src={appIcon} alt="MaraBytes" className="w-7 h-7 object-contain" />
           </div>
           <div>
-            <h1 className="text-sm font-semibold text-white/90 leading-tight">
-              MaraBytes
-            </h1>
-            <p className="text-[10px] text-white/40 font-medium tracking-wide">
-              File Share
-            </p>
+            <h1 className="text-sm font-semibold text-app-text leading-tight">MaraBytes</h1>
+            <p className="text-[10px] text-app-text-secondary font-medium tracking-wide">File Share</p>
           </div>
         </div>
       </div>
@@ -44,8 +42,8 @@ export default function Sidebar({
             onClick={() => onNavigate(item.id)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl transition-all duration-200 ${
               activePage === item.id
-                ? 'bg-white/10 text-white shadow-sm border border-white/[0.06]'
-                : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'
+                ? 'bg-app-glass text-app-text shadow-sm border border-app-border'
+                : 'text-app-text-secondary hover:text-app-text hover:bg-app-glass-hover'
             }`}
           >
             <span className="text-base w-5 text-center">{item.icon}</span>
@@ -54,16 +52,16 @@ export default function Sidebar({
         ))}
       </nav>
 
-      <div className="p-4 border-t border-white/[0.06] space-y-2">
+      <div className="p-4 border-t border-app-border space-y-2">
         <div className="flex items-center gap-2.5 px-1">
-          <div className={`w-2 h-2 rounded-full ${deviceCount > 0 ? 'bg-green-400 shadow-sm shadow-green-400/40' : 'bg-white/20'}`} />
-          <span className="text-xs text-white/40">
+          <div className={`w-2 h-2 rounded-full ${deviceCount > 0 ? 'bg-green-400 shadow-sm shadow-green-400/40' : 'bg-app-text-muted'}`} />
+          <span className="text-xs text-app-text-secondary">
             {deviceCount > 0 ? `${deviceCount} device${deviceCount > 1 ? 's' : ''} online` : 'No devices'}
           </span>
         </div>
         {localIP && (
           <div className="px-1">
-            <span className="text-[10px] text-white/30 font-mono">{localIP}</span>
+            <span className="text-[10px] text-app-text-muted font-mono">{localIP}</span>
           </div>
         )}
       </div>

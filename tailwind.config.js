@@ -4,16 +4,23 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        mb: {
-          dark: '#0a0e1a',
-          darker: '#060912',
-          surface: '#111827',
-          'surface-light': '#1e293b',
-          accent: '#0ea5e9',
-          'accent-light': '#38bdf8',
-          'accent-dark': '#0284c7',
-          muted: '#64748b',
-          'muted-light': '#94a3b8',
+        app: {
+          bg: 'var(--app-bg)',
+          glass: 'var(--app-glass)',
+          'glass-hover': 'var(--app-glass-hover)',
+          surface: 'var(--app-surface)',
+          'surface-hover': 'var(--app-surface-hover)',
+          text: 'var(--app-text)',
+          'text-secondary': 'var(--app-text-secondary)',
+          'text-muted': 'var(--app-text-muted)',
+          border: 'var(--app-border)',
+          'border-hover': 'var(--app-border-hover)',
+          glow: 'var(--app-glow)',
+        },
+        accent: {
+          DEFAULT: '#0ea5e9',
+          light: '#38bdf8',
+          dark: '#0284c7',
         },
       },
       fontFamily: {

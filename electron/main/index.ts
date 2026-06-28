@@ -47,6 +47,10 @@ function setupServices(): void {
   transferServer = new FileTransferServer(TRANSFER_PORT)
   transferServer.start()
 
+  transferServer.on('new', (transfer) => {
+    mainWindow?.webContents.send('transfer-new', transfer)
+  })
+
   transferServer.on('progress', (transfer) => {
     mainWindow?.webContents.send('transfer-progress', transfer)
   })
@@ -120,6 +124,29 @@ function setupIPC(): void {
     })
     if (result.canceled) return null
     return result.filePaths
+  })
+
+  ipcMain.handle('get-download-path', () => {
+    return transferServer?.getDownloadPath() || ''
+  })
+
+  ipcMain.handle('set-download-path', async () => {
+    if (!mainWindow) return null
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    const newPath = result.filePaths[0]
+    transferServer?.setDownloadPath(newPath)
+    return newPath
+  })
+
+  ipcMain.handle('open-file-folder', (_event, filePath: string) => {
+    shell.showItemInFolder(filePath)
+  })
+
+  ipcMain.handle('open-external', (_event, url: string) => {
+    shell.openExternal(url)
   })
 }
 
