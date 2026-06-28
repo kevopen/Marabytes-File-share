@@ -1,0 +1,34 @@
+{
+  "name": "marabytes-file-share",
+  "version": "1.0.0",
+  "description": "MaraBytes File Share - Cross-platform file sharing desktop app",
+  "main": "./out/main/index.js",
+  "author": "MaraBytes",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package:linux": "electron-vite build && electron-builder --linux",
+    "package:win": "electron-vite build && electron-builder --win",
+    "package:all": "electron-vite build && electron-builder --linux --win"
+  },
+  "dependencies": {
+    "@electron-toolkit/utils": "^3.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "^42.5.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^5.0.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3"
+  }
+}
