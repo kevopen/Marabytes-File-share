@@ -10,5 +10,12 @@ linux:
   category: Utility
 win:
   target:
-    - portable
+    - nsis
   artifactName: "${productName}-${version}-win-${arch}.${ext}"
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "MaraBytes File Share"
