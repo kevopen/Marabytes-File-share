@@ -2,7 +2,6 @@ interface TransferListProps {
   transfers: Transfer[]
   onCancel: (id: string) => void
   onOpenFolder: (filePath: string) => void
-  downloadPath?: string
 }
 
 function formatSize(bytes: number): string {
@@ -54,9 +53,9 @@ function TransferCard({ t, onCancel, onOpenFolder }: {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-            t.status === 'receiving' ? 'bg-green-500/10' : 'bg-accent/10'
+            t.contentType === 'text' ? 'bg-green-500/10' : t.status === 'receiving' ? 'bg-green-500/10' : 'bg-accent/10'
           }`}>
-            <span className="text-sm">{t.direction === 'send' ? '↑' : '↓'}</span>
+            <span className="text-sm">{t.contentType === 'text' ? 'T' : t.direction === 'send' ? '↑' : '↓'}</span>
           </div>
           <div className="min-w-0">
             <p className="text-sm text-app-text font-medium truncate">{t.fileName}</p>
@@ -95,7 +94,7 @@ function TransferCard({ t, onCancel, onOpenFolder }: {
   )
 }
 
-export default function TransferList({ transfers, onCancel, onOpenFolder, downloadPath }: TransferListProps) {
+export default function TransferList({ transfers, onCancel, onOpenFolder }: TransferListProps) {
   const active = transfers.filter((t) => t.status === 'sending' || t.status === 'receiving' || t.status === 'pending')
   const history = transfers.filter((t) => t.status !== 'sending' && t.status !== 'receiving' && t.status !== 'pending')
 
@@ -109,9 +108,6 @@ export default function TransferList({ transfers, onCancel, onOpenFolder, downlo
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
             <h3 className="text-[10px] font-semibold text-app-text-muted uppercase tracking-[0.15em]">Active</h3>
-            {active.some(t => t.direction === 'receive') && downloadPath && (
-              <span className="text-[9px] text-app-text-muted font-mono truncate max-w-[200px]" title={downloadPath}>↓ {downloadPath}</span>
-            )}
           </div>
           <div className="space-y-2">
             {active.map((t) => (
@@ -136,8 +132,8 @@ export default function TransferList({ transfers, onCancel, onOpenFolder, downlo
                     canOpen ? 'cursor-pointer hover:bg-app-glass-hover' : ''
                   }`}
                 >
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-accent/10">
-                    <span className="text-[10px]">{t.direction === 'send' ? '↑' : '↓'}</span>
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${t.contentType === 'text' ? 'bg-green-500/10' : 'bg-accent/10'}`}>
+                    <span className="text-[10px]">{t.contentType === 'text' ? 'T' : t.direction === 'send' ? '↑' : '↓'}</span>
                   </div>
                   <p className="text-sm text-app-text flex-1 truncate">{t.fileName}</p>
                   <span className="text-[10px] text-app-text-muted">{t.peerName}</span>

@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLocalIP: () => ipcRenderer.invoke('get-local-ip'),
   sendFile: (deviceId: string) =>
     ipcRenderer.invoke('send-file', deviceId),
+  sendText: (deviceId: string, text: string) =>
+    ipcRenderer.invoke('send-text', deviceId, text),
   cancelTransfer: (transferId: string) =>
     ipcRenderer.invoke('cancel-transfer', transferId),
   openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),

@@ -15,7 +15,9 @@ export interface TransferInfo {
   peerName: string
   peerIp: string
   direction: 'send' | 'receive'
+  contentType: 'file' | 'text'
   targetPath?: string
+  textPreview?: string
   error?: string
   startedAt: number
 }
@@ -65,6 +67,8 @@ export class FileTransferServer extends EventEmitter {
     this.server = http.createServer((req, res) => {
       if (req.method === 'POST' && req.url === '/upload') {
         this.handleUpload(req, res)
+      } else if (req.method === 'POST' && req.url === '/upload-text') {
+        this.handleTextUpload(req, res)
       } else if (req.method === 'GET' && req.url === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ status: 'ok' }))
@@ -100,6 +104,7 @@ export class FileTransferServer extends EventEmitter {
       peerName,
       peerIp: peerIp.replace('::ffff:', ''),
       direction: 'receive',
+      contentType: 'file',
       targetPath: destPath,
       startedAt: Date.now(),
     }
@@ -143,6 +148,129 @@ export class FileTransferServer extends EventEmitter {
     req.pipe(writeStream)
   }
 
+  private handleTextUpload(req: http.IncomingMessage, res: http.ServerResponse): void {
+    const peerName = req.headers['x-peer-name'] as string || 'Unknown'
+    const peerIp = req.socket.remoteAddress || 'unknown'
+    const transferId = generateId()
+    const previewName = req.headers['x-text-preview'] as string || 'text'
+
+    const textsDir = path.join(this.downloadDir, 'texts')
+    if (!fs.existsSync(textsDir)) {
+      fs.mkdirSync(textsDir, { recursive: true })
+    }
+
+    const timestamp = Date.now()
+    const destPath = path.join(textsDir, `${timestamp}.txt`)
+    const writeStream = fs.createWriteStream(destPath)
+
+    const transfer: TransferInfo = {
+      id: transferId,
+      fileName: `${previewName} — ${new Date(timestamp).toLocaleString()}`,
+      fileSize: 0,
+      progress: 100,
+      speed: 0,
+      status: 'completed',
+      peerName,
+      peerIp: peerIp.replace('::ffff:', ''),
+      direction: 'receive',
+      contentType: 'text',
+      targetPath: destPath,
+      textPreview: previewName,
+      startedAt: timestamp,
+    }
+
+    let textContent = ''
+    req.on('data', (chunk: Buffer) => {
+      textContent += chunk.toString()
+    })
+
+    req.on('end', () => {
+      writeStream.write(textContent)
+      writeStream.end()
+      transfer.fileSize = Buffer.byteLength(textContent)
+      this.transfers.set(transferId, transfer)
+      this.emit('new', transfer)
+      this.emit('complete', { ...transfer })
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ status: 'ok', transferId }))
+    })
+
+    req.on('error', (err) => {
+      transfer.status = 'error'
+      transfer.error = err.message
+      this.emit('error', { ...transfer })
+      res.writeHead(500)
+      res.end()
+    })
+  }
+
+  async sendText(
+    targetIp: string,
+    targetPort: number,
+    text: string,
+    peerName: string
+  ): Promise<string> {
+    const transferId = generateId()
+    const preview = text.slice(0, 60).replace(/\n/g, ' ')
+
+    const transfer: TransferInfo = {
+      id: transferId,
+      fileName: `"${preview}${text.length > 60 ? '…' : ''}"`,
+      fileSize: Buffer.byteLength(text),
+      progress: 0,
+      speed: 0,
+      status: 'sending',
+      peerName,
+      peerIp: targetIp,
+      direction: 'send',
+      contentType: 'text',
+      textPreview: preview,
+      startedAt: Date.now(),
+    }
+
+    this.transfers.set(transferId, transfer)
+
+    const options = {
+      hostname: targetIp,
+      port: targetPort,
+      path: '/upload-text',
+      method: 'POST',
+      headers: {
+        'x-peer-name': os.hostname(),
+        'x-text-preview': preview,
+        'Content-Type': 'text/plain',
+      },
+    }
+
+    const req = http.request(options, (res) => {
+      let body = ''
+      res.on('data', (chunk) => (body += chunk))
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          transfer.status = 'completed'
+          transfer.progress = 100
+          this.emit('complete', { ...transfer })
+        } else {
+          transfer.status = 'error'
+          transfer.error = `Server returned ${res.statusCode}`
+          this.emit('error', { ...transfer })
+        }
+      })
+    })
+
+    req.on('error', (err) => {
+      transfer.status = 'error'
+      transfer.error = err.message
+      this.emit('error', { ...transfer })
+    })
+
+    this.emit('new', { ...transfer })
+    req.write(text)
+    req.end()
+
+    return transferId
+  }
+
   async sendFile(
     targetIp: string,
     targetPort: number,
@@ -165,6 +293,7 @@ export class FileTransferServer extends EventEmitter {
       peerName,
       peerIp: targetIp,
       direction: 'send',
+      contentType: 'file',
       startedAt: Date.now(),
     }
 

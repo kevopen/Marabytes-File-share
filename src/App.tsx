@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import DropZone from './components/DropZone'
+import TextShare from './components/TextShare'
 import DeviceList from './components/DeviceList'
 import TransferList from './components/TransferList'
 import ToastContainer, { useToast } from './components/Toast'
@@ -12,6 +13,7 @@ type Page = 'share' | 'transfers' | 'settings'
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>('share')
+  const [shareMode, setShareMode] = useState<'files' | 'text'>('files')
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('mb-theme') as 'dark' | 'light') || 'dark'
   })
@@ -21,7 +23,11 @@ export default function App() {
   const { toasts, addToast } = useToast()
   const { transfers, sendFile, cancelTransfer } = useTransfers(
     useCallback((t: Transfer) => {
-      addToast(`Receiving ${t.fileName} from ${t.peerName}`, 'info')
+      if (t.contentType === 'text') {
+        addToast(`New text from ${t.peerName}: "${t.textPreview || '...'}"`, 'info')
+      } else {
+        addToast(`Receiving ${t.fileName} from ${t.peerName}`, 'info')
+      }
     }, [])
   )
 
@@ -43,6 +49,13 @@ export default function App() {
   const handleSendFile = useCallback(() => {
     if (selectedDeviceId) sendFile(selectedDeviceId)
   }, [selectedDeviceId, sendFile])
+
+  const handleSendText = useCallback((text: string) => {
+    if (!window.electronAPI || !selectedDeviceId) return
+    window.electronAPI.sendText(selectedDeviceId, text).catch((err) => {
+      addToast(`Failed to send text: ${err.message}`, 'error')
+    })
+  }, [selectedDeviceId])
 
   const handleSetDownloadPath = useCallback(async () => {
     if (!window.electronAPI) return
@@ -79,26 +92,57 @@ export default function App() {
           {activePage === 'share' && (
             <div className="max-w-2xl mx-auto space-y-6">
               <div className="text-center py-4">
-                <h1 className="text-xl font-semibold text-app-text">Share Files</h1>
+                <h1 className="text-xl font-semibold text-app-text">Share</h1>
                 <p className="text-sm text-app-text-secondary mt-1">
-                  Select a device, then drag & drop or pick a file
+                  Select a device, then send files or text
                 </p>
               </div>
 
               <DeviceList devices={devices} selectedId={selectedDeviceId} onSelect={selectDevice} />
 
-              <DropZone
-                hasDevices={devices.length > 0}
-                selectedDeviceName={selectedDevice?.name || null}
-                onSendFile={handleSendFile}
-              />
+              {/* Mode tabs */}
+              <div className="flex gap-1 bg-app-glass rounded-xl p-1 border border-app-border">
+                <button
+                  onClick={() => setShareMode('files')}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                    shareMode === 'files'
+                      ? 'bg-accent text-white shadow-sm'
+                      : 'text-app-text-secondary hover:text-app-text'
+                  }`}
+                >
+                  ↑ Files
+                </button>
+                <button
+                  onClick={() => setShareMode('text')}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                    shareMode === 'text'
+                      ? 'bg-accent text-white shadow-sm'
+                      : 'text-app-text-secondary hover:text-app-text'
+                  }`}
+                >
+                  T Text
+                </button>
+              </div>
+
+              {shareMode === 'files' ? (
+                <DropZone
+                  hasDevices={devices.length > 0}
+                  selectedDeviceName={selectedDevice?.name || null}
+                  onSendFile={handleSendFile}
+                />
+              ) : (
+                <TextShare
+                  hasDevices={devices.length > 0}
+                  selectedDeviceName={selectedDevice?.name || null}
+                  onSendText={handleSendText}
+                />
+              )}
 
               {transfers.length > 0 && (
                 <TransferList
                   transfers={transfers}
                   onCancel={cancelTransfer}
                   onOpenFolder={handleOpenFolder}
-                  downloadPath={downloadPath}
                 />
               )}
             </div>
@@ -113,7 +157,6 @@ export default function App() {
                 transfers={transfers}
                 onCancel={cancelTransfer}
                 onOpenFolder={handleOpenFolder}
-                downloadPath={downloadPath}
               />
             </div>
           )}

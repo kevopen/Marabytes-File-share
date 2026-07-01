@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, dialog, Menu } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { DeviceDiscovery } from './discovery'
@@ -84,6 +84,27 @@ function setupIPC(): void {
     return discovery?.getLocalIP() || '127.0.0.1'
   })
 
+  ipcMain.handle('send-text', async (_event, deviceId: string, text: string) => {
+    if (!discovery || !transferServer) {
+      throw new Error('Services not initialized')
+    }
+
+    const devices = discovery.getDevices()
+    const target = devices.find((d) => d.id === deviceId)
+    if (!target) {
+      throw new Error('Device not found')
+    }
+
+    const transferId = await transferServer.sendText(
+      target.ip,
+      target.port,
+      text,
+      target.name
+    )
+
+    return { transferId }
+  })
+
   ipcMain.handle('send-file', async (_event, deviceId: string) => {
     if (!discovery || !transferServer) {
       throw new Error('Services not initialized')
@@ -150,6 +171,7 @@ function setupIPC(): void {
 }
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null)
   createWindow()
   setupServices()
   setupIPC()
