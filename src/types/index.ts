@@ -25,10 +25,17 @@ export interface Transfer {
 
 export type TransferStatus = Transfer['status']
 
+export interface UpdateInfo {
+  version: string
+  releaseDate?: string
+  releaseNotes?: string
+}
+
 export interface ElectronAPI {
   getDevices: () => Device[]
   getTransfers: () => Transfer[]
   getLocalIP: () => string
+  getAppVersion: () => Promise<string>
   sendFile: (deviceId: string, filePath: string) => Promise<{ transferId: string }>
   sendText: (deviceId: string, text: string) => Promise<{ transferId: string }>
   cancelTransfer: (transferId: string) => void
@@ -37,9 +44,16 @@ export interface ElectronAPI {
   setDownloadPath: () => Promise<string | null>
   openFileFolder: (filePath: string) => void
   openExternal: (url: string) => void
+  downloadUpdate: () => void
+  installUpdate: () => void
   onDeviceListChange: (callback: (devices: Device[]) => void) => () => void
   onTransferNew: (callback: (transfer: Transfer) => void) => () => void
   onTransferUpdate: (callback: (transfer: Transfer) => void) => () => void
   onTransferComplete: (callback: (transfer: Transfer) => void) => () => void
   onError: (callback: (error: string) => void) => () => void
+  onUpdateAvailable: (callback: (info: UpdateInfo) => void) => () => void
+  onUpdateNotAvailable: (callback: () => void) => () => void
+  onUpdateDownloadProgress: (callback: (progress: { percent: number }) => void) => () => void
+  onUpdateDownloaded: (callback: () => void) => () => void
+  onUpdateError: (callback: (error: string) => void) => () => void
 }

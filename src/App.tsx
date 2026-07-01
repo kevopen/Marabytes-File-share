@@ -8,6 +8,7 @@ import TransferList from './components/TransferList'
 import ToastContainer, { useToast } from './components/Toast'
 import { useDevices } from './hooks/useDevices'
 import { useTransfers } from './hooks/useTransfers'
+import { useUpdate } from './hooks/useUpdate'
 
 type Page = 'share' | 'transfers' | 'settings'
 
@@ -21,6 +22,7 @@ export default function App() {
   const [devicesCount, setDevicesCount] = useState(0)
   const { devices, localIP, selectedDeviceId, selectedDevice, selectDevice } = useDevices()
   const { toasts, addToast } = useToast()
+  const { state: updateState, appVersion, download: downloadUpdate, install: installUpdate } = useUpdate()
   const { transfers, sendFile, cancelTransfer } = useTransfers(
     useCallback((t: Transfer) => {
       if (t.contentType === 'text') {
@@ -83,7 +85,16 @@ export default function App() {
         <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-accent-dark/[0.02] blur-[100px]" />
       </div>
 
-      <Sidebar activePage={activePage} onNavigate={setActivePage} deviceCount={devicesCount} localIP={localIP} />
+      <Sidebar
+        activePage={activePage}
+        onNavigate={setActivePage}
+        deviceCount={devicesCount}
+        localIP={localIP}
+        appVersion={appVersion}
+        updateState={updateState}
+        onDownloadUpdate={downloadUpdate}
+        onInstallUpdate={installUpdate}
+      />
 
       <main className="flex-1 flex flex-col relative">
         <Header localIP={localIP} />

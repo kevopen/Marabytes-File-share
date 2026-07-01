@@ -7,6 +7,10 @@ interface SidebarProps {
   onNavigate: (page: Page) => void
   deviceCount: number
   localIP: string
+  appVersion?: string
+  updateState?: { status: string; version?: string; progress?: number }
+  onDownloadUpdate?: () => void
+  onInstallUpdate?: () => void
 }
 
 const navItems: { id: Page; label: string; icon: string }[] = [
@@ -20,6 +24,10 @@ export default function Sidebar({
   onNavigate,
   deviceCount,
   localIP,
+  appVersion,
+  updateState,
+  onDownloadUpdate,
+  onInstallUpdate,
 }: SidebarProps) {
   return (
     <aside className="w-60 flex flex-col bg-app-bg border-r border-app-border">
@@ -52,6 +60,40 @@ export default function Sidebar({
         ))}
       </nav>
 
+      {/* Update banner */}
+      {updateState?.status === 'available' && (
+        <div className="px-3 py-2 mx-3 mb-2 rounded-xl bg-accent/10 border border-accent/20">
+          <p className="text-[11px] text-accent-light font-medium">Update v{updateState.version} available</p>
+          <button
+            onClick={onDownloadUpdate}
+            className="text-[10px] text-white bg-accent hover:bg-accent-dark px-2.5 py-1 rounded-lg mt-1.5 transition-colors"
+          >
+            Download
+          </button>
+        </div>
+      )}
+      {updateState?.status === 'downloading' && (
+        <div className="px-3 py-2 mx-3 mb-2 rounded-xl bg-accent/10 border border-accent/20">
+          <p className="text-[11px] text-accent-light font-medium">Downloading update...</p>
+          {typeof updateState.progress === 'number' && (
+            <div className="w-full h-1 bg-app-border rounded-full mt-1.5 overflow-hidden">
+              <div className="h-full bg-accent rounded-full transition-all" style={{ width: `${updateState.progress}%` }} />
+            </div>
+          )}
+        </div>
+      )}
+      {updateState?.status === 'downloaded' && (
+        <div className="px-3 py-2 mx-3 mb-2 rounded-xl bg-green-500/10 border border-green-500/20">
+          <p className="text-[11px] text-green-400 font-medium">Update ready to install</p>
+          <button
+            onClick={onInstallUpdate}
+            className="text-[10px] text-white bg-green-500 hover:bg-green-600 px-2.5 py-1 rounded-lg mt-1.5 transition-colors"
+          >
+            Restart & Install
+          </button>
+        </div>
+      )}
+
       <div className="p-4 border-t border-app-border space-y-2">
         <div className="flex items-center gap-2.5 px-1">
           <div className={`w-2 h-2 rounded-full ${deviceCount > 0 ? 'bg-green-400 shadow-sm shadow-green-400/40' : 'bg-app-text-muted'}`} />
@@ -62,6 +104,11 @@ export default function Sidebar({
         {localIP && (
           <div className="px-1">
             <span className="text-[10px] text-app-text-muted font-mono">{localIP}</span>
+          </div>
+        )}
+        {appVersion && (
+          <div className="px-1">
+            <span className="text-[10px] text-app-text-muted">v{appVersion}</span>
           </div>
         )}
       </div>

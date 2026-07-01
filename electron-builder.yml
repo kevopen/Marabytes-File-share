@@ -3,6 +3,10 @@ productName: MaraBytes File Share
 directories:
   output: release
 icon: build/icon.png
+publish:
+  provider: github
+  owner: kevopen
+  repo: Electron-File-share
 linux:
   target:
     - AppImage

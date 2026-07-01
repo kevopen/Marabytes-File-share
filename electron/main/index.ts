@@ -3,6 +3,7 @@ import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { DeviceDiscovery } from './discovery'
 import { FileTransferServer } from './transfer'
+import { setupUpdater, downloadUpdate, installUpdate } from './updater'
 
 const TRANSFER_PORT = 42070
 
@@ -165,8 +166,20 @@ function setupIPC(): void {
     shell.showItemInFolder(filePath)
   })
 
+  ipcMain.handle('download-update', () => {
+    downloadUpdate()
+  })
+
+  ipcMain.handle('install-update', () => {
+    installUpdate()
+  })
+
   ipcMain.handle('open-external', (_event, url: string) => {
     shell.openExternal(url)
+  })
+
+  ipcMain.handle('get-app-version', () => {
+    return app.getVersion()
   })
 }
 
@@ -175,6 +188,9 @@ app.whenReady().then(() => {
   createWindow()
   setupServices()
   setupIPC()
+  if (mainWindow) {
+    setupUpdater(mainWindow)
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
